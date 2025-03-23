@@ -93,41 +93,116 @@ export class CatalogItem extends Card<CatalogItemStatus> {
 }
 
 
-interface ILotActions {
-    onClick: (event: MouseEvent) => void;
+export type AuctionStatus = {
+    status: string,
+    time: string,
+    label: string,
+    nextBid: number,
+    history: number[]
+};
+
+export class AuctionItem extends Card<HTMLElement> {
+    protected _status: HTMLElement;
+
+    constructor(container: HTMLElement, actions?: ICardActions) {
+        super('lot', container, actions);
+        this._status = ensureElement<HTMLElement>(`.lot__status`, container);
+    }
+
+    set status(content: HTMLElement) {
+        this._status.replaceWith(content);
+    }
 }
 
-export class LotCard extends Component<ILot>{
-    protected _title: HTMLElement;
-    protected _image: HTMLImageElement;
-    protected _description: HTMLElement;
-    protected _status: HTMLElement;
-    protected _button: HTMLButtonElement;
+interface IAuctionActions {
+    onSubmit: (price: number) => void;
+}
 
-    constructor(container: HTMLElement, actions?: ILotActions){
+export class Auction extends Component<AuctionStatus> {
+    protected _time: HTMLElement;
+    protected _label: HTMLElement;
+    protected _button: HTMLButtonElement;
+    protected _input: HTMLInputElement;
+    protected _history: HTMLElement;
+    protected _bids: HTMLElement
+    protected _form: HTMLFormElement;
+
+    constructor(container: HTMLElement, actions?: IAuctionActions) {
         super(container);
 
-        this._title = ensureElement<HTMLElement>('.card__title', container);
-        this._image = ensureElement<HTMLImageElement>('.card__image', container);
-        this._description = ensureElement<HTMLElement>('.card__description', container);
-        this._status = ensureElement<HTMLElement>('.card__status', container);
-        this._button = ensureElement<HTMLButtonElement>('.card__action', container);
+        this._time = ensureElement<HTMLElement>(`.lot__auction-timer`, container);
+        this._label = ensureElement<HTMLElement>(`.lot__auction-text`, container);
+        this._button = ensureElement<HTMLButtonElement>(`.button`, container);
+        this._input = ensureElement<HTMLInputElement>(`.form__input`, container);
+        this._bids = ensureElement<HTMLElement>(`.lot__history-bids`, container);
+        this._history = ensureElement<HTMLElement>('.lot__history', container);
+        this._form = ensureElement<HTMLFormElement>(`.lot__bid`, container);
 
-        if(actions?.onClick){
-            this._button.addEventListener('click', actions.onClick);
+        this._form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            actions?.onSubmit?.(parseInt(this._input.value));
+            return false;
+        });
+    }
+
+    set time(value: string) {
+        this.setText(this._time, value);
+    }
+    set label(value: string) {
+        this.setText(this._label, value);
+    }
+    set nextBid(value: number) {
+        this._input.value = String(value);
+    }
+    set history(value: number[]) {
+        this._bids.replaceChildren(...value.map(item => createElement<HTMLUListElement>('li', {
+            className: 'lot__history-item',
+            textContent: formatNumber(item)
+        })));
+    }
+
+    set status(value: LotStatus) {
+        if (value !== 'active') {
+            this.setHidden(this._history);
+            this.setHidden(this._form);
+        } else {
+            this.setVisible(this._history);
+            this.setVisible(this._form);
         }
-
     }
 
-    render(data: ILot): HTMLElement {
-        this.setText(this._title, data.title);
-        this.setText(this._description, data.description);
-        this.setImage(this._image, data.image);
-        this.setStatus = data.status;
-        return super.render(data);
+    focus() {
+        this._input.focus();
+    }
+}
+
+export interface BidStatus {
+    amount: number;
+    status: boolean;
+}
+
+export class BidItem extends Card<BidStatus> {
+    protected _amount: HTMLElement;
+    protected _status: HTMLElement;
+    protected _selector: HTMLInputElement;
+
+    constructor(container: HTMLElement, actions?: ICardActions) {
+        super('bid', container, actions);
+        this._amount = ensureElement<HTMLElement>(`.bid__amount`, container);
+        this._status = ensureElement<HTMLElement>(`.bid__status`, container);
+        this._selector = container.querySelector(`.bid__selector-input`);
+
+        if (!this._button && this._selector) {
+            this._selector.addEventListener('change', (event: MouseEvent) => {
+                actions?.onClick?.(event);
+            })
+        }
     }
 
-    set setStatus(status: LotStatus){
-        this.setText(this._status, status);
+    set status({ amount, status }: BidStatus) {
+        this.setText(this._amount, formatNumber(amount));
+
+        if (status) this.setVisible(this._status);
+        else this.setHidden(this._status);
     }
 }
